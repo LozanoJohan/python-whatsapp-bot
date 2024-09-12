@@ -12,34 +12,49 @@ client = OpenAI(api_key=OPEN_AI_API_KEY)
 # --------------------------------------------------------------
 # Upload file
 # --------------------------------------------------------------
-def upload_file(path):
-    # Upload a file with an "assistants" purpose
-    file = client.files.create(file=open(path, "rb"), purpose="assistants")
-    return file
+
+def create_vector_store(files, name):
+    # Create a vector store caled "Financial Statements"
+    vector_store = client.beta.vector_stores.create(name=name)
+    
+    # Ready the files for upload to OpenAI
+    file_paths = files
+    file_streams = [open(path, "rb") for path in file_paths]
+    
+    # Use the upload and poll SDK helper to upload the files, add them to the vector store,
+    # and poll the status of the file batch for completion.
+    file_batch = client.beta.vector_stores.file_batches.upload_and_poll(
+    vector_store_id=vector_store.id, files=file_streams
+    )
+    
+    # You can print the status and the file counts of the batch to see the result of this operation.
+    print(file_batch.status)
+    print(file_batch.file_counts)
+    
+    return vector_store
 
 
-file = upload_file("../data/airbnb-faq.pdf")
-
+vector_store = create_vector_store(["data/airbnb-faq.pdf"], "AirBnb-FAQ1")
 
 # --------------------------------------------------------------
 # Create assistant
 # --------------------------------------------------------------
-def create_assistant(file):
+def create_assistant(vector_store):
     """
     You currently cannot set the temperature for Assistant via the API.
     """
     assistant = client.beta.assistants.create(
-        name="WhatsApp AirBnb Assistant",
-        instructions="You're a helpful WhatsApp assistant that can assist guests that are staying in our Paris AirBnb. Use your knowledge base to best respond to customer queries. If you don't know the answer, say simply that you cannot help with question and advice to contact the host directly. Be friendly and funny.",
-        tools=[{"type": "retrieval"}],
-        model="gpt-4-1106-preview",
-        file_ids=[file.id],
+        name="WhatsApp AirBnb Assistant Steve",
+        instructions="Your name is Steve. Act as Steve Jobs. You're a helpful WhatsApp assistant that can assist guests that are staying in our Paris AirBnb. Use your knowledge base to best respond to customer queries. If you don't know the answer, say simply that you cannot help with question and advice to contact the host directly. Be friendly and funny.",
+        tools=[{"type": "file_search"}],
+        model="gpt-4o",
+        tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
     )
+    
     return assistant
 
-
-assistant = create_assistant(file)
-
+assistant = create_assistant(vector_store)
+print(assistant.id)
 
 # --------------------------------------------------------------
 # Thread management
@@ -91,7 +106,7 @@ def generate_response(message_body, wa_id, name):
 # --------------------------------------------------------------
 def run_assistant(thread):
     # Retrieve the Assistant
-    assistant = client.beta.assistants.retrieve("asst_7Wx2nQwoPWSf710jrdWTDlfE")
+    assistant = client.beta.assistants.retrieve("asst_ctB2uxVUieQ8TJLGVK2dWN2Q")
 
     # Run the assistant
     run = client.beta.threads.runs.create(
@@ -116,7 +131,7 @@ def run_assistant(thread):
 # Test assistant
 # --------------------------------------------------------------
 
-new_message = generate_response("What's the check in time?", "123", "John")
+new_message = generate_response("What's your name?", "123", "John")
 
 new_message = generate_response("What's the pin for the lockbox?", "456", "Sarah")
 

@@ -11,6 +11,7 @@ import asyncio
 
 load_dotenv()
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
+print(ACCESS_TOKEN)
 RECIPIENT_WAID = os.getenv("RECIPIENT_WAID")
 PHONE_NUMBER_ID = os.getenv("PHONE_NUMBER_ID")
 VERSION = os.getenv("VERSION")
